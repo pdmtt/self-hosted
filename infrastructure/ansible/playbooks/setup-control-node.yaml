@@ -1,0 +1,31 @@
+- name: Setup control node
+  hosts: local
+  gather_facts: true
+  tasks:
+  - name: Install packages needed for verifying Hashicorp's GPG keys
+    become: true
+    ansible.builtin.apt:
+      state: latest
+      update_cache: true
+      name: gnupg
+
+  - name: Add Hashicorp's GPG key
+    become: true
+    ansible.builtin.get_url:
+      url: https://apt.releases.hashicorp.com/gpg
+      dest: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  
+  - name: Add Hashicorp's repository
+    become: true
+    ansible.builtin.apt_repository:
+      repo: "deb [arch={{ ansible_architecture }} signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+      state: present
+      filename: hashicorp
+  
+  - name: Install Terraform
+    become: true
+    ansible.builtin.apt:
+      state: latest
+      update_cache: true
+      name: terraform
+  
