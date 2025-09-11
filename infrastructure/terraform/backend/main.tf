@@ -1,9 +1,13 @@
-resource "b2_bucket" "parent_backend_bucket" {
-  bucket_name = "self-hosted-terraform-backend"
-  bucket_type = "allPrivate"
+resource "aws_s3_bucket" "terraform_backend_bucket" {
+  bucket = "self-hosted-terraform-backend"
+}
 
-  default_server_side_encryption {
-    algorithm = "AES256"
-    mode      = "SSE-B2"
+resource "aws_s3_bucket_server_side_encryption_configuration" "default" {
+  bucket = aws_s3_bucket.terraform_backend_bucket.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
   }
 }
