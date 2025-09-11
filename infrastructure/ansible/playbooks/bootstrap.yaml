@@ -1,31 +1,49 @@
-- name: Setup control node
+- name: Install Terraform
+  become: true
   hosts: local
   gather_facts: true
   tasks:
   - name: Install packages needed for verifying Hashicorp's GPG keys
-    become: true
     ansible.builtin.apt:
-      state: latest
-      update_cache: true
+      state: present
+      update_cache: false
       name: gnupg
 
   - name: Add Hashicorp's GPG key
-    become: true
     ansible.builtin.get_url:
       url: https://apt.releases.hashicorp.com/gpg
       dest: /usr/share/keyrings/hashicorp-archive-keyring.gpg
   
   - name: Add Hashicorp's repository
-    become: true
     ansible.builtin.apt_repository:
       repo: "deb [arch={{ ansible_architecture }} signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
       state: present
       filename: hashicorp
   
   - name: Install Terraform
-    become: true
     ansible.builtin.apt:
       state: latest
       update_cache: true
       name: terraform
   
+- name: Bootstrap Terraform's remote backend and providers' authentication
+  hosts: local
+
+  vars_prompt:
+    - name: b2_app_key_id
+      prompt: Backblaze application key ID
+      private: false
+
+    - name: b2_app_key
+      prompt: Backblaze application key
+      private: true
+      unsafe: true
+
+  tasks: 
+    - name: Create the Backblaze B2 bucket that will store Terraform's state file
+      environment: 
+        B2_APPLICATION_KEY_ID: "{{ b2_app_key_id }}"
+        B2_APPLICATION_KEY: "{{ b2_app_key }}"
+      community.general.terraform:
+        project_path: "{{ playbook_dir }}/../../terraform/backend"
+        state: present
