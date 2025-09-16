@@ -22,28 +22,41 @@
   
   - name: Install Terraform
     ansible.builtin.apt:
-      state: latest
+      state: present
       update_cache: true
-      name: terraform
+      name: terraform=1.13.2-1
   
 - name: Bootstrap Terraform's remote backend and providers' authentication
   hosts: local
 
   vars_prompt:
-    - name: b2_app_key_id
-      prompt: Backblaze application key ID
+    - name: aws_access_key_id
+      prompt: AWS Access Key ID
       private: false
 
-    - name: b2_app_key
-      prompt: Backblaze application key
+    - name: aws_secret_access_key
+      prompt: AWS Access Key secret
+      private: true
+      unsafe: true
+
+    - name: digitalocean_token
+      prompt: DigitalOcean API Token
       private: true
       unsafe: true
 
   tasks: 
-    - name: Create the Backblaze B2 bucket that will store Terraform's state file
+    - name: Create the AWS S3 bucket that will store Terraform's state file
       environment: 
-        B2_APPLICATION_KEY_ID: "{{ b2_app_key_id }}"
-        B2_APPLICATION_KEY: "{{ b2_app_key }}"
+        AWS_ACCESS_KEY_ID: "{{ aws_access_key_id }}"
+        AWS_SECRET_ACCESS_KEY: "{{ aws_secret_access_key }}"
       community.general.terraform:
         project_path: "{{ playbook_dir }}/../../terraform/backend"
+        force_init: true
         state: present
+
+    - name: Create Terraform's .env file
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/dot_env.j2"
+        dest: "{{ playbook_dir }}/../../terraform/.env"
+        mode: "0600"
+        
