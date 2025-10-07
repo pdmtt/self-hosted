@@ -16,16 +16,16 @@
   
   - name: Add Hashicorp's repository
     ansible.builtin.apt_repository:
-      repo: "deb [arch={{ ansible_architecture }} signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+      repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }} signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
       state: present
       filename: hashicorp
   
   - name: Install Terraform
     ansible.builtin.apt:
-      state: present
+      state: latest
       update_cache: true
-      name: terraform=1.13.2-1
-  
+      name: terraform
+
 - name: Bootstrap Terraform's remote backend and providers' authentication
   hosts: local
 
