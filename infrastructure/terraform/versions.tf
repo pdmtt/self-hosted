@@ -13,6 +13,12 @@ terraform {
       source  = "digitalocean/digitalocean"
       version = "~> 2.67"
     }
+
+    ansible = {
+      // See https://blog.sneakybugs.com/ansible-inventory-terraform/
+      source  = "ansible/ansible"
+      version = "~> 1.3"
+    }
   }
 }
 
