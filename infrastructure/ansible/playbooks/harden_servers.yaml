@@ -1,0 +1,49 @@
+- name: Create non-root user
+  hosts: servers
+  remote_user: root
+
+  # If the server already had been hardened, root login using SSH will be denied and this play will
+  # fail. So, we ignore the unreachable error.
+  ignore_unreachable: true
+
+  vars:
+    username: user
+
+  tasks:
+    - name: Create non-root user
+      ansible.builtin.user:
+        name: "{{ username }}"
+        state: present
+        shell: /bin/bash
+        create_home: true # needed for holding the user's authorized SSH keys
+
+    - name: Add non-root user to sudoers
+      # It is important to create an user with sudo privileges, because root-login via SSH will be
+      # disabled.
+      ansible.builtin.copy:
+        content: "{{ username }} ALL=(ALL) NOPASSWD: ALL" # Grants passwordless sudo for all commands
+        dest: "/etc/sudoers.d/{{ username }}"
+        mode: "0440"
+        owner: root
+        group: root
+        validate: /usr/sbin/visudo -cf %s # Validates the syntax before applying
+
+    - name: Authorize local user to log in via SSH
+      ansible.posix.authorized_key:
+        user: "{{ username }}"
+        state: present
+        exclusive: true
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}" # Path to your local public key file
+
+- name: Harden OS and SSH
+  hosts: servers
+  remote_user: user
+  become: true
+  roles:
+    - devsec.hardening.os_hardening
+    - devsec.hardening.ssh_hardening
+  vars:
+    sysctl_overwrite:
+      # Enable IPv4 traffic forwarding.
+      # Needed for Docker to work.
+      net.ipv4.ip_forward: "1"
