@@ -52,6 +52,9 @@ resource "digitalocean_firewall" "main" {
 
 resource "ansible_group" "server" {
   name = "servers"
+  variables = {
+    ansible_ssh_user = "user"
+  }
 }
 
 resource "ansible_host" "main" {
