@@ -1,0 +1,7 @@
+- name: Copy the services' definition to the server
+  hosts: servers
+  tasks:
+    - name: Copy the services' definition to the server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../../services/"
+        dest: "~/services"
