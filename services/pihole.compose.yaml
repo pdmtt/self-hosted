@@ -7,19 +7,26 @@ services:
   pihole:
     container_name: pihole
     image: "pihole/pihole:2025.08.0"
-    ports:
-      # DNS Ports
-      - "53:53/tcp"
-      - "53:53/udp"
-      # Default HTTP Port
-      - "80:80/tcp"
-      # Default HTTPs Port. FTL will generate a self-signed certificate
-      - "443:443/tcp"
+    restart: unless-stopped
+
+    # When pihole is running inside a container with the `bridge` network driver, all queries are
+    # relayed through the docker engine, so only one client is seen by the application. In order to
+    # allow multiple direct clients (and have logs about them), we need to run the container in
+    # `host` mode.
+    # There's no need to publish ports when running in `host` mode.
+    network_mode: "host"
+
     environment:
-      # Set the appropriate timezone for your location (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones), e.g:
       TZ: "America/Sao_Paulo"
-    # Volumes store your data between container upgrades
+
+      # Redirect port 80 to 443
+      FTLCONF_webserver_port: "80r,443os,[::]:80r,[::]:443os"
+
+      # This sets pihole to listen on all interfaces. This might be dangerous if the instance is
+      # open for outbound traffic. Since our instance only allows traffic from the tailnet, this is
+      # safe.
+      FTLCONF_dns_listeningMode: "ALL"
+
     volumes:
       # For persisting Pi-hole's databases and common configuration file
       - "pihole:/etc/pihole"
-    restart: unless-stopped
