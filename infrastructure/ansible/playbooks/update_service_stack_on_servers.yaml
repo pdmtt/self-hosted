@@ -1,0 +1,11 @@
+- name: Update the service stack on the servers
+  hosts: servers
+  tasks:
+    - name: Update the service stack definition on the server
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../../services/"
+        dest: "~/services"
+
+    - name: Up the services on the server
+      become: true
+      ansible.builtin.shell: "docker compose -f /home/{{ ansible_ssh_user }}/services/compose.yaml up -d --remove-orphans"
