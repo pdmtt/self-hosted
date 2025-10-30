@@ -1,0 +1,93 @@
+volumes:
+  postgres:
+    name: postgres
+  pihole:
+    name: pihole
+
+services:
+  dozzle:
+    # Used to live watching container log output.
+    image: amir20/dozzle:v8
+    container_name: dozzle
+    hostname: dozzle
+    restart: unless-stopped
+    ports:
+      - 8888:8080
+    volumes:
+      # Dozzle needs access to the Docker socket to get the container logs.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: postgres
+    hostname: postgres
+    restart: unless-stopped
+
+    env_file:
+      - .env
+      - .db.env
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
+    volumes:
+      # "This also changes the VOLUME to /var/lib/postgresql, which should be more reasonable"
+      # https://github.com/docker-library/postgres/pull/1259
+      - postgres:/var/lib/postgresql
+
+  backrest:
+    image: garethgeorge/backrest:v1-scratch
+    container_name: backrest
+    hostname: backrest
+    restart: unless-stopped
+
+    env_file: .env
+
+    environment:
+      - BACKREST_DATA=/data # path for backrest data. restic binary and the database are placed here.
+      - BACKREST_CONFIG=/config/config.json # path for the backrest config file.
+      - XDG_CACHE_HOME=/cache # path for the restic cache which greatly improves performance.
+      - TMPDIR=/tmp
+      - B2_ACCOUNT_ID=${B2_APPLICATION_KEY_ID}
+      - B2_ACCOUNT_KEY=${B2_APPLICATION_KEY}
+
+    volumes:
+      - ./backrest/data:/data
+      - ./backrest/config:/config
+      - ./backrest/cache:/cache
+      - ./backrest/tmp:/tmp
+
+    ports:
+      - 9898:9898
+
+  # More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
+  pihole:
+    container_name: pihole
+    image: "pihole/pihole:2025.08.0"
+    restart: unless-stopped
+
+    # When pihole is running inside a container with the `bridge` network driver, all queries are
+    # relayed through the docker engine, so only one client is seen by the application. In order to
+    # allow multiple direct clients (and have logs about them), we need to run the container in
+    # `host` mode.
+    # There's no need to publish ports when running in `host` mode.
+    network_mode: "host"
+
+    env_file: .env
+
+    environment:
+      # Redirect port 80 to 443
+      FTLCONF_webserver_port: "80r,443s,[::]:80r,[::]:443s"
+
+      # This sets pihole to listen on all interfaces. This might be dangerous if the instance is
+      # open for outbound traffic. Since our instance only allows traffic from the tailnet, this is
+      # safe.
+      FTLCONF_dns_listeningMode: "ALL"
+
+    volumes:
+      # For persisting Pi-hole's databases and common configuration file
+      - "pihole:/etc/pihole"
