@@ -1,0 +1,61 @@
+- name: Create the certificate storage directory
+  file:
+    dest: /etc/pki/collab/private
+    owner: root
+    group: mail
+    mode: "0750"
+    state: directory
+
+- name: Create the account key
+  command: openssl genrsa -out /etc/pki/collab/private/letsencrypt_account.key 4096
+  args:
+    creates: /etc/pki/collab/private/letsencrypt_account.key
+
+- name: Create the certificate key
+  command: openssl ecparam -genkey -name prime256v1 -out /etc/pki/collab/private/{{ domain }}.key
+  args:
+    creates: /etc/pki/collab/private/{{ domain }}.key
+  register: result
+
+- name: Generate the CSR
+  when: result is changed
+  command: openssl req -new -sha256 -key /etc/pki/collab/private/{{ domain }}.key -out /etc/pki/collab/{{ domain }}.csr -subj /CN={{ domain }}
+
+- name: Get the ACME challenge
+  acme_certificate:
+    account_key: /etc/pki/collab/private/letsencrypt_account.key
+    acme_version: 2
+    acme_directory: https://acme-v02.api.letsencrypt.org/directory
+    terms_agreed: true
+    challenge: dns-01
+    remaining_days: 12
+    csr: /etc/pki/collab/{{ domain }}.csr
+    fullchain_dest: /etc/pki/collab/private/{{ domain }}.crt
+  register: acme_data
+
+- name: Complete the ACME challenge
+  delegate_to: localhost
+  become: false
+  route53:
+    command: create
+    overwrite: true
+    wait: true
+    zone: "{{ domain }}"
+    record: "{{ acme_data.challenge_data[domain]['dns-01']['resource'] }}.{{ domain }}"
+    type: TXT
+    value: '"{{ acme_data.challenge_data[domain][''dns-01''][''resource_value''] }}"'
+    ttl: 30
+  when: acme_data is changed
+
+- name: Get the certificate
+  acme_certificate:
+    account_key: /etc/pki/collab/private/letsencrypt_account.key
+    acme_version: 2
+    acme_directory: https://acme-v02.api.letsencrypt.org/directory
+    terms_agreed: true
+    challenge: dns-01
+    remaining_days: 12
+    csr: /etc/pki/collab/{{ domain }}.csr
+    fullchain_dest: /etc/pki/collab/private/{{ domain }}.crt
+    data: "{{ acme_data }}"
+  register: result

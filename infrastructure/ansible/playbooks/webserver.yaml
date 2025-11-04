@@ -31,3 +31,9 @@
         # to ssh into the server and do it manually.
         # ref.: https://github.com/artis3n/ansible-collection-tailscale/tree/main/roles/machine
         tailscale_up_skip: true
+
+    # Create the TLS certificate that'll be used by the reverse proxy to encrypt traffic.
+    - role: tls_cert
+      become: true
+      vars:
+        domain: "pdmtt.dev"
