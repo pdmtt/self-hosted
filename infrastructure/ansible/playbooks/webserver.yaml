@@ -1,5 +1,8 @@
 - hosts: servers
 
+  vars_files:
+    - ../vars/webserver.yaml
+
   pre_tasks:
     - name: Check if Docker is available
       ansible.builtin.shell: "which docker"
@@ -35,5 +38,3 @@
     # Create the TLS certificate that'll be used by the reverse proxy to encrypt traffic.
     - role: tls_cert
       become: true
-      vars:
-        domain: "pdmtt.dev"

@@ -1,3 +1,9 @@
+- name: Ensure the latest OpenSSL is installed
+  apt:
+    name: openssl
+    state: latest
+    update_cache: yes
+
 - name: Create the certificate storage directory
   file:
     dest: /etc/pki/collab/private
@@ -12,25 +18,26 @@
     creates: /etc/pki/collab/private/letsencrypt_account.key
 
 - name: Create the certificate key
-  command: openssl ecparam -genkey -name prime256v1 -out /etc/pki/collab/private/{{ domain }}.key
+  command: openssl ecparam -genkey -name prime256v1 -out /etc/pki/collab/private/{{ tls_cert_domain }}.key
   args:
-    creates: /etc/pki/collab/private/{{ domain }}.key
+    creates: /etc/pki/collab/private/{{ tls_cert_domain }}.key
   register: result
 
 - name: Generate the CSR
   when: result is changed
-  command: openssl req -new -sha256 -key /etc/pki/collab/private/{{ domain }}.key -out /etc/pki/collab/{{ domain }}.csr -subj /CN={{ domain }}
+  command: openssl req -new -sha256 -key /etc/pki/collab/private/{{ tls_cert_domain }}.key -out /etc/pki/collab/{{ tls_cert_domain }}.csr -subj /CN={{ tls_cert_domain }}
 
 - name: Get the ACME challenge
   acme_certificate:
+    account_email: "{{ tls_cert_admin_email }}"
     account_key: /etc/pki/collab/private/letsencrypt_account.key
     acme_version: 2
     acme_directory: https://acme-v02.api.letsencrypt.org/directory
     terms_agreed: true
     challenge: dns-01
     remaining_days: 12
-    csr: /etc/pki/collab/{{ domain }}.csr
-    fullchain_dest: /etc/pki/collab/private/{{ domain }}.crt
+    csr: /etc/pki/collab/{{ tls_cert_domain }}.csr
+    fullchain_dest: /etc/pki/collab/private/{{ tls_cert_domain }}.crt
   register: acme_data
 
 - name: Complete the ACME challenge
@@ -40,22 +47,24 @@
     command: create
     overwrite: true
     wait: true
-    zone: "{{ domain }}"
-    record: "{{ acme_data.challenge_data[domain]['dns-01']['resource'] }}.{{ domain }}"
+    zone: "{{ tls_cert_domain }}"
+    record: "{{ acme_data.challenge_data[tls_cert_domain]['dns-01']['resource'] }}.{{ tls_cert_domain }}"
     type: TXT
-    value: '"{{ acme_data.challenge_data[domain][''dns-01''][''resource_value''] }}"'
+    value: '"{{ acme_data.challenge_data[tls_cert_domain][''dns-01''][''resource_value''] }}"'
     ttl: 30
   when: acme_data is changed
 
-- name: Get the certificate
+- name: Get and save the certificate
   acme_certificate:
+    account_email: "{{ tls_cert_admin_email }}"
     account_key: /etc/pki/collab/private/letsencrypt_account.key
     acme_version: 2
     acme_directory: https://acme-v02.api.letsencrypt.org/directory
     terms_agreed: true
     challenge: dns-01
     remaining_days: 12
-    csr: /etc/pki/collab/{{ domain }}.csr
-    fullchain_dest: /etc/pki/collab/private/{{ domain }}.crt
+    csr: /etc/pki/collab/{{ tls_cert_domain }}.csr
+    fullchain_dest: /etc/pki/collab/private/{{ tls_cert_domain }}.crt
     data: "{{ acme_data }}"
-  register: result
+
+  # TODO: find a way to automatically renew the certificate.
