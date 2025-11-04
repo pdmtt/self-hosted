@@ -1,0 +1,35 @@
+- hosts: localhost
+  tasks:
+    - name: Check if Terraform is installed
+      ansible.builtin.shell: which terraform
+      register: terraform_check
+      ignore_errors: true # the command is expected to fail when Terraform is not installed
+      changed_when: false
+      failed_when: false
+
+    - name: Install Terraform
+      when: terraform_check.rc != 0
+      become: true
+      block:
+        - name: Install packages needed for verifying Hashicorp's GPG keys
+          ansible.builtin.apt:
+            state: present
+            update_cache: false
+            name: gnupg
+
+        - name: Add Hashicorp's GPG key
+          ansible.builtin.get_url:
+            url: https://apt.releases.hashicorp.com/gpg
+            dest: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+        - name: Add Hashicorp's repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }} signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+            state: present
+            filename: hashicorp
+
+        - name: Install Terraform
+          ansible.builtin.apt:
+            state: latest
+            update_cache: true
+            name: terraform

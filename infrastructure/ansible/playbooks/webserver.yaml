@@ -1,0 +1,33 @@
+- hosts: servers
+
+  pre_tasks:
+    - name: Check if Docker is available
+      ansible.builtin.shell: "which docker"
+      register: docker_available
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+    - name: Check if Tailscale is running
+      ansible.builtin.shell: "tailscale status"
+      register: tailscale_status
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+  roles:
+    # Docker will be used to run the servers' services.
+    - role: geerlingguy.docker
+      when: docker_available.rc != 0
+      become: true
+
+    # Tailscale will be used to access the servers' services without opening ports for outbound
+    # traffic.
+    - role: artis3n.tailscale.machine
+      when: tailscale_status.rc != 0
+      become: true
+      vars:
+        # You can use an authkey to automatically up tailscale on the server, but I found it easier
+        # to ssh into the server and do it manually.
+        # ref.: https://github.com/artis3n/ansible-collection-tailscale/tree/main/roles/machine
+        tailscale_up_skip: true
