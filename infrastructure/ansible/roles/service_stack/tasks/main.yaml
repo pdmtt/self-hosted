@@ -12,7 +12,14 @@
     dest: "~/services"
     recursive: yes
     delete: yes
+  register: synchronize_result
 
 - name: Start service stack
+  when: synchronize_result is changed
   become: true
-  ansible.builtin.shell: "docker compose -f /home/{{ ansible_ssh_user }}/services/compose.yaml up -d --remove-orphans"
+  block:
+    - name: Stop service stack
+      ansible.builtin.shell: "docker compose -f /home/{{ ansible_ssh_user }}/services/compose.yaml down"
+
+    - name: Start service stack
+      ansible.builtin.shell: "docker compose -f /home/{{ ansible_ssh_user }}/services/compose.yaml up -d --remove-orphans"
