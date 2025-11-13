@@ -20,32 +20,51 @@ resource "digitalocean_firewall" "main" {
 
   inbound_rule {
     protocol         = "tcp"
-    port_range       = "22" # SSH
     source_addresses = ["0.0.0.0/0", "::/0"]
+    port_range       = "22" # SSH
   }
 
   outbound_rule {
     protocol              = "udp"
-    port_range            = "53" # DNS
     destination_addresses = ["0.0.0.0/0", "::/0"]
+    port_range            = "53" # DNS
+  }
+
+  outbound_rule {
+    # https://tailscale.com/kb/1082/firewall-ports: 
+    # > Let your internal devices start UDP from :41641 to *:*.
+    # > Direct WireGuard tunnels use UDP with source port 41641. 
+    # > We recommend *:* because you cannot possibly predict every guest Wi-fi, coffee shop, LTE 
+    # > provider, or hotel network that your users may be using.
+    protocol              = "udp"
+    destination_addresses = ["0.0.0.0/0", "::/0"]
+    port_range            = "1-65535"
+  }
+
+  outbound_rule {
+    # Tailscale's STUN server.
+    # ref.: https://tailscale.com/kb/1082/firewall-ports
+    protocol              = "udp"
+    destination_addresses = ["0.0.0.0/0", "::/0"]
+    port_range            = "3478"
   }
 
   outbound_rule {
     protocol              = "tcp"
-    port_range            = "53" # DNS
     destination_addresses = ["0.0.0.0/0", "::/0"]
+    port_range            = "53" # DNS
   }
 
   outbound_rule {
     protocol              = "tcp"
+    destination_addresses = ["0.0.0.0/0", "::/0"]
     port_range            = "80" # HTTP
-    destination_addresses = ["0.0.0.0/0", "::/0"]
   }
 
   outbound_rule {
     protocol              = "tcp"
-    port_range            = "443" # HTTPS
     destination_addresses = ["0.0.0.0/0", "::/0"]
+    port_range            = "443" # HTTPS
   }
 
 }
