@@ -4,13 +4,6 @@
     - ../vars/webserver.yaml
 
   pre_tasks:
-    - name: Check if Docker is available
-      ansible.builtin.shell: "which docker"
-      register: docker_available
-      changed_when: false
-      failed_when: false
-      ignore_errors: true
-
     - name: Check if Tailscale is running
       ansible.builtin.shell: "tailscale status"
       register: tailscale_status
@@ -20,8 +13,7 @@
 
   roles:
     # Docker will be used to run the servers' services.
-    - role: geerlingguy.docker
-      when: docker_available.rc != 0
+    - role: docker
       become: true
 
     # Tailscale will be used to access the servers' services without opening ports for outbound
@@ -37,6 +29,7 @@
 
     # Create the TLS certificate that'll be used by the reverse proxy to encrypt traffic.
     - role: tls_cert
+      when: false
       become: true
 
     # Guarantee that the service stack is running and up to date.

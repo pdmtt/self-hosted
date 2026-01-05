@@ -1,0 +1,19 @@
+- name: Check if Docker is available
+  ansible.builtin.shell: "which docker"
+  register: docker_available
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Install Docker
+  when: docker_available.rc != 0
+  ansible.builtin.include_role:
+    name: geerlingguy.docker
+
+# This is needed to allow the localhost to connect to the remote server's Docker daemon using SSH,
+# e.g. DOCKER_HOST="ssh://user@host" docker compose down.
+- name: Add user to the docker group
+  ansible.builtin.user:
+    name: "{{ ansible_ssh_user }}"
+    groups: docker
+    append: true
