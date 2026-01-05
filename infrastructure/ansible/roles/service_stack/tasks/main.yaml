@@ -1,25 +1,13 @@
-# > rsync must be installed on both the local and remote host.
-# ref.: https://docs.ansible.com/ansible/latest/collections/ansible/posix/synchronize_module.html#notes
-- name: Ensure rsync is installed
-  become: true
-  ansible.builtin.package:
-    name: rsync
-    state: present
+- name: Create and start the service stack
+  delegate_to: localhost
 
-- name: Synchronize the service stack definition and configuration
-  ansible.posix.synchronize:
-    src: "{{ playbook_dir }}/../../../services/"
-    dest: "~/services"
-    recursive: yes
-    delete: yes
-  register: synchronize_result
+  environment:
+    COMPOSE_FILE: "{{ ansible_config_file | dirname }}/services/compose.yaml"
+    DOCKER_HOST: "ssh://{{ ansible_ssh_user }}@{{ ansible_host }}"
 
-- name: Start service stack
-  when: synchronize_result is changed
-  become: true
   block:
     - name: Stop service stack
-      ansible.builtin.shell: "docker compose -f /home/{{ ansible_ssh_user }}/services/compose.yaml down"
+      ansible.builtin.shell: "docker compose down"
 
     - name: Start service stack
-      ansible.builtin.shell: "docker compose -f /home/{{ ansible_ssh_user }}/services/compose.yaml up -d --remove-orphans"
+      ansible.builtin.shell: "docker compose up -d --remove-orphans"

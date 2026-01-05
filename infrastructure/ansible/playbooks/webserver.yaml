@@ -34,4 +34,3 @@
 
     # Guarantee that the service stack is running and up to date.
     - role: service_stack
-      become: true
