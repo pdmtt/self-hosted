@@ -3,6 +3,8 @@ volumes:
     name: caddy_config
   caddy_data:
     name: caddy_data
+  fileserver:
+    name: fileserver
   pihole:
     name: pihole
   postgres:
@@ -109,3 +111,23 @@ services:
     volumes:
       # For persisting Pi-hole's databases and common configuration file
       - "pihole:/etc/pihole"
+
+  fileserver:
+    image: "sigoden/dufs:v0.45.0"
+    command: /data -A
+    container_name: fileserver
+    hostname: fileserver
+    restart: unless-stopped
+
+    env_file:
+      - .common.env
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:5000/__dufs__/health"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
+    volumes:
+      - fileserver:/data

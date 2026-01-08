@@ -5,3 +5,11 @@ dozzle.{$DOMAIN} {
         dns cloudflare {$CLOUDFLARE_API_TOKEN}
     }
 }
+
+fs.{$DOMAIN} {
+    log
+    reverse_proxy http://fileserver:5000
+    tls {
+        dns cloudflare {$CLOUDFLARE_API_TOKEN}
+    }
+}
