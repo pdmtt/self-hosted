@@ -27,10 +27,5 @@
         # ref.: https://github.com/artis3n/ansible-collection-tailscale/tree/main/roles/machine
         tailscale_up_skip: true
 
-    # Create the TLS certificate that'll be used by the reverse proxy to encrypt traffic.
-    - role: tls_cert
-      when: false
-      become: true
-
     # Guarantee that the service stack is running and up to date.
     - role: service_stack

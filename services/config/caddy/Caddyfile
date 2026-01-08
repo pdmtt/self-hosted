@@ -1,0 +1,7 @@
+dozzle.{$DOMAIN} {
+    log
+    reverse_proxy http://dozzle:8080
+    tls {
+        dns cloudflare {$CLOUDFLARE_API_TOKEN}
+    }
+}

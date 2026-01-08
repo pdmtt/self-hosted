@@ -18,16 +18,10 @@ resource "digitalocean_firewall" "main" {
   name        = "main"
   droplet_ids = [digitalocean_droplet.server.id]
 
-  inbound_rule {
+  inbound_rule { # SSH
     protocol         = "tcp"
     source_addresses = ["0.0.0.0/0", "::/0"]
-    port_range       = "22" # SSH
-  }
-
-  outbound_rule {
-    protocol              = "udp"
-    destination_addresses = ["0.0.0.0/0", "::/0"]
-    port_range            = "53" # DNS
+    port_range       = "22"
   }
 
   outbound_rule {
@@ -41,30 +35,35 @@ resource "digitalocean_firewall" "main" {
     port_range            = "1-65535"
   }
 
-  outbound_rule {
-    # Tailscale's STUN server.
-    # ref.: https://tailscale.com/kb/1082/firewall-ports
+  outbound_rule { # Tailscale's STUN server.
+    # See https://tailscale.com/kb/1082/firewall-ports for more details.
     protocol              = "udp"
     destination_addresses = ["0.0.0.0/0", "::/0"]
     port_range            = "3478"
   }
 
-  outbound_rule {
-    protocol              = "tcp"
+  outbound_rule { # Upstream DNS
+    protocol              = "udp"
     destination_addresses = ["0.0.0.0/0", "::/0"]
-    port_range            = "53" # DNS
+    port_range            = "53"
   }
 
-  outbound_rule {
+  outbound_rule { # Upstream DNS
     protocol              = "tcp"
     destination_addresses = ["0.0.0.0/0", "::/0"]
-    port_range            = "80" # HTTP
+    port_range            = "53"
   }
 
-  outbound_rule {
+  outbound_rule { # HTTP
     protocol              = "tcp"
     destination_addresses = ["0.0.0.0/0", "::/0"]
-    port_range            = "443" # HTTPS
+    port_range            = "80"
+  }
+
+  outbound_rule { # HTTPS
+    protocol              = "tcp"
+    destination_addresses = ["0.0.0.0/0", "::/0"]
+    port_range            = "443"
   }
 
 }

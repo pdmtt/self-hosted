@@ -1,21 +1,62 @@
 volumes:
-  postgres:
-    name: postgres
+  caddy_config:
+    name: caddy_config
+  caddy_data:
+    name: caddy_data
   pihole:
     name: pihole
+  postgres:
+    name: postgres
 
 services:
+  # Used to live watch container log output.
   dozzle:
-    # Used to live watching container log output.
     image: amir20/dozzle:v8
     container_name: dozzle
     hostname: dozzle
     restart: unless-stopped
+
+    # It is useful to open one port even though Dozzle is proxied by Caddy, because the latter may
+    # fail and the former can be accessed directly to troubleshoot issues.
     ports:
-      - 8888:8080
+      - "8080:8080"
+
     volumes:
       # Dozzle needs access to the Docker socket to get the container logs.
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  # Webserver used as a reverse proxy.
+  # It's used to encrypt HTTP traffic to and from the services.
+  caddy:
+    build:
+      context: ./build/
+      dockerfile: caddy.Dockerfile
+
+    container_name: caddy
+    hostname: caddy
+    restart: unless-stopped
+
+    cap_add:
+      - NET_ADMIN
+
+    env_file:
+      - .common.env
+      - .caddy.env
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+
+    volumes:
+      # > The data directory must not be treated as a cache. Its contents are not ephemeral or
+      # > merely for the sake of performance. Caddy stores TLS certificates, private keys, OCSP
+      # > staples, and other necessary information to the data directory.
+      # > It should not be purged without an understanding of the implications.
+      # https://hub.docker.com/_/caddy#%EF%B8%8F-a-note-about-persisted-data
+      - caddy_data:/data
+      - caddy_config:/config
+      - /etc/caddy:/etc/caddy:ro
 
   postgres:
     image: postgres:18-alpine
@@ -24,8 +65,8 @@ services:
     restart: unless-stopped
 
     env_file:
-      - .env
-      - .db.env
+      - .common.env
+      - .postgres.env
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]
@@ -35,40 +76,21 @@ services:
       start_period: 80s
 
     volumes:
-      # "This also changes the VOLUME to /var/lib/postgresql, which should be more reasonable"
-      # https://github.com/docker-library/postgres/pull/1259
+      # > This also changes the VOLUME to /var/lib/postgresql, which should be more reasonable
+      # ref.: https://github.com/docker-library/postgres/pull/1259
       - postgres:/var/lib/postgresql
 
-  backrest:
-    image: garethgeorge/backrest:v1-scratch
-    container_name: backrest
-    hostname: backrest
-    restart: unless-stopped
-
-    env_file: .env
-
-    environment:
-      - BACKREST_DATA=/data # path for backrest data. restic binary and the database are placed here.
-      - BACKREST_CONFIG=/config/config.json # path for the backrest config file.
-      - XDG_CACHE_HOME=/cache # path for the restic cache which greatly improves performance.
-      - TMPDIR=/tmp
-      - B2_ACCOUNT_ID=${B2_APPLICATION_KEY_ID}
-      - B2_ACCOUNT_KEY=${B2_APPLICATION_KEY}
-
-    volumes:
-      - ./backrest/data:/data
-      - ./backrest/config:/config
-      - ./backrest/cache:/cache
-      - ./backrest/tmp:/tmp
-
-    ports:
-      - 9898:9898
-
+  # DNS server.
+  # Is usually used to block ads and other unwanted content.
   # More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
   pihole:
+    image: "pihole/pihole:2025.11.1"
     container_name: pihole
-    image: "pihole/pihole:2025.08.0"
+    hostname: pihole
     restart: unless-stopped
+
+    env_file:
+      - .common.env
 
     # When pihole is running inside a container with the `bridge` network driver, all queries are
     # relayed through the docker engine, so only one client is seen by the application. In order to
@@ -77,12 +99,8 @@ services:
     # There's no need to publish ports when running in `host` mode.
     network_mode: "host"
 
-    env_file: .env
-
     environment:
-      # Redirect port 80 to 443
-      FTLCONF_webserver_port: "80r,443s,[::]:80r,[::]:443s"
-
+      FTLCONF_webserver_port: "8889"
       # This sets pihole to listen on all interfaces. This might be dangerous if the instance is
       # open for outbound traffic. Since our instance only allows traffic from the tailnet, this is
       # safe.

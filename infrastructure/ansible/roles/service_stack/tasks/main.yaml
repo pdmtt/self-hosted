@@ -1,3 +1,10 @@
+- name: Copy config files
+  become: true
+  ansible.builtin.copy:
+    src: "{{ ansible_config_file | dirname }}/services/config/"
+    dest: "/etc/"
+    mode: "0644"
+
 - name: Create and start the service stack
   delegate_to: localhost
 
@@ -6,6 +13,14 @@
     DOCKER_HOST: "ssh://{{ ansible_ssh_user }}@{{ ansible_host }}"
 
   block:
+    # Pull and build images before stopping the service stack to minimize downtime.
+    # This may fail, so it's better to try it before stopping the service stack.
+    - name: Pull images
+      ansible.builtin.shell: "docker compose pull"
+
+    - name: Build images
+      ansible.builtin.shell: "docker compose build"
+
     - name: Stop service stack
       ansible.builtin.shell: "docker compose down"
 
