@@ -5,6 +5,15 @@
     dest: "/etc/"
     mode: "0644"
 
+# This is needed to allow the localhost to connect to the remote server's Docker daemon using SSH,
+# e.g. DOCKER_HOST="ssh://user@host" docker compose down.
+- name: Add user to the docker group
+  become: true
+  ansible.builtin.user:
+    name: "{{ ansible_ssh_user }}"
+    groups: docker
+    append: true
+
 - name: Create and start the service stack
   delegate_to: localhost
 
